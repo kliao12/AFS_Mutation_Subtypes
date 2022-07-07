@@ -1,3 +1,6 @@
+##### Title: Script to run the main analysis in paper 
+##### Date: 7/6/22
+
 #Import libraries
 library(ggplot2)
 library(gridExtra)
@@ -12,7 +15,10 @@ allele_counts <- read.table("/Users/kevinliao/Desktop/Michigan Research/Mutation
 #allele_counts <- read.table("C:\\Users\\Kevin Liao\\Desktop\\Michigan Research\\Mutation Rates\\chr22_fullanno_to_output.vcf")
 colnames(allele_counts) <- c("CHR", "REF","ALT", "AA","AC", "AC_correct", "ANNO", "MT", "KMER", "MST")
 
-##### Creating dataset for MST with Tajima D, F*, Ratio of singletons to doubletons, Mutation Rates ######
+
+
+##### Begin creating dataframe with summary stats for each MST: Tajima D, F*, Ratio of singletons to doubletons, Mutation Rates, etc #####
+
 
 # Compute Tajimas D using genome wide SFS
 taj_d_list = list()
@@ -146,8 +152,7 @@ colnames(singles) <- c("MST", "prop_singles")
 singles$MST <- as.character(singles$MST)
 singles$prop_singles <- as.numeric(as.vector(singles$prop_singles))
 
-
-#Import Jed's mutation rates
+#Import mutation rates
 mut_rates <-read.table("/Users/kevinliao/Desktop/Michigan Research/Mutation Rates/Jeds subtype mutation rates (2020_02_29 01_13_00 UTC).csv", sep=',', header = TRUE, stringsAsFactors=FALSE)
 
 mut_rates$MST <- ifelse(substr(mut_rates$Type,1,1) == 'A',
@@ -171,8 +176,13 @@ merged_data$mt_grouping <- with(merged_data, ifelse(substr(MST,1,3) == 'A_C', 1,
 merged_data$mt_grouping <- with(merged_data, ifelse(substr(MST,1,3) == 'A_T', 2, merged_data$mt_grouping))
 merged_data$mt_grouping <- with(merged_data, ifelse(substr(MST,1,3) == 'C_G', 3, merged_data$mt_grouping))
 
-####### Create graphs and figures #########
-#0.5 Tajimas D by MST
+
+
+
+####### Run analysis. Also create graphs and figures #########
+
+
+#0.5) Create plot for Tajimas D by MST
 taj_d <- ggplot(data=merged_data, aes(x=MST, y=D, fill = as.factor(mt_grouping)) ) +
   geom_bar(stat="identity", show.legend = FALSE) + 
   xlab("Mutation Subtype") +
@@ -187,8 +197,7 @@ taj_d <- ggplot(data=merged_data, aes(x=MST, y=D, fill = as.factor(mt_grouping))
 taj_d
 
 
-
-#1.Ratio of singletons to doubletons by mutation rate
+# 1) Relationship between mutation rate and ratio of singleton to doubletons by MST
 cor.test(no_CpG$ERV_rel_rate, no_CpG$S_D_ratio)
 cor.test(merged_data$ERV_rel_rate, merged_data$S_D_ratio)
 
@@ -255,55 +264,7 @@ cor.test(subset(merged_data, substr(merged_data$MST, 1, 3) == 'C_G')$ERV_rel_rat
 cor.test(subset(merged_data, substr(merged_data$MST, 1, 3) == 'C_T')$ERV_rel_rate, subset(merged_data, substr(merged_data$MST, 1, 3) == 'C_T')$S_D_ratio)
 
 
-#2. F* by mutation rate
-cor.test(no_CpG$ERV_rel_rate, no_CpG$F)
-cor.test(merged_data$ERV_rel_rate, merged_data$F)
-
-b <- ggplot(merged_data, aes(x=ERV_rel_rate, y=F)) +
-  geom_point() + 
-  xlab("ERV Mutation Rate") + 
-  ylab("Ratio of Singletons to Doubletons") +
-  geom_smooth(method = "lm", se = FALSE) +
-  annotate("text", x=.09, y=-11.5, label="All MSTs: \n cor = 0.501, p = 2.04*10^-7 ") +
-  annotate("text", x=.09, y=-12.5, label="Exclude C_T CpGs: \n cor = 0.223, p = 0.033") +
-  ggtitle("Ratio of Singletons to Doubletons by ERV Mutation Rate for 96 MSTs") +
-  theme(plot.title = element_text(hjust = 0.5)) +
-  scale_y_continuous(limits=c(-13,-10),oob = rescale_none)
-b
-
-#3. F* and D by mutation subtype
-merged_data$fill <- with(merged_data, ifelse(substr(MST,1,3) == 'A_G', 1,0))
-merged_data$fill <- with(merged_data, ifelse(substr(MST,1,3) == 'C_A', 2, merged_data$fill))
-
-c <- ggplot(data=merged_data, aes(x=reorder(MST, F), y=Fq) ) +
-  geom_bar(stat="identity") + 
-  xlab("Mutation Subtype") +
-  ylab("F*") +
-  theme(axis.text.x=element_text(angle=90)) +
-  ggtitle("F* by Mutation Subtype") +
-  theme(plot.title = element_text(hjust = 0.5)) +
-  scale_y_continuous(limits=c(-13, -10),oob = rescale_none) +
-  scale_fill_manual(values = c("2" = "dodgerblue", "1" = "orangered2", "0" = "grey70"),
-                    name="Mutation\nSubtype",
-                    breaks = c(0,1,2),
-                    labels =c("Other","A_G","C_A")) 
-c
-
-c2 <- ggplot(data=merged_data, aes(x=reorder(MST, D), y=D, fill=factor(fill)) ) +
-  geom_bar(stat="identity") + 
-  xlab("Mutation Subtype") +
-  ylab("D") +
-  theme(axis.text.x=element_text(angle=90)) +
-  ggtitle("D by Mutation Subtype") +
-  theme(plot.title = element_text(hjust = 0.5)) +
-  scale_y_continuous(limits=c(-2.5, -1.0),oob = rescale_none) +
-  scale_fill_manual(values = c("2" = "dodgerblue", "1" = "orangered2", "0" = "grey70"),
-                    name="Mutation\nSubtype",
-                    breaks = c(0,1,2),
-                    labels =c("Other","A_G","C_A")) 
-c2
-
-#Conduct Mann Whitney Test for A->G compared to other mutation types to show biased gene conversion
+# 2): Biased gene conversion (gBGC) on the AFS. Split into mutation types and WS, SW, neutral 
 A_C <- subset(merged_data, substr(MST,1,3) == 'A_C')
 non_A_C <- subset(merged_data, substr(MST,1,3) != 'A_C')
 
@@ -346,7 +307,6 @@ wilcox.test(as.numeric(as.vector(C_G$D)), as.numeric(as.vector(non_C_G$D)), pair
 wilcox.test(as.numeric(as.vector(C_T$F)), as.numeric(as.vector(non_C_T$F)), paired=FALSE)
 #not significant after taking out CpGs
 wilcox.test(as.numeric(as.vector(C_T_noCpG$F)), as.numeric(as.vector(non_C_T_noCpG$F)), paired=FALSE)
-
 
 ###Checking by WS SW Neutral bins
 #Try with all mutation subtypes
@@ -415,125 +375,68 @@ wilcox.test(as.numeric(as.vector(C_G$D)), as.numeric(as.vector(non_C_G$D)), pair
 
 wilcox.test(as.numeric(as.vector(C_T$D)), as.numeric(as.vector(non_C_T$D)), paired=FALSE)
 
-#4. Redo same barplot using output of quantification of biased gene conversion 
-BGC_MST <- read.table("C:\\Users\\Kevin Liao\\Desktop\\Michigan Research\\Biased Gene Conversion\\gw_combined.txt")
-colnames(BGC_MST) <- c("MST", "gBGC")
 
-BGC_MST$fill <- with(BGC_MST, ifelse(substr(MST,1,3) == 'A_G', 1,0))
-BGC_MST$fill <- with(BGC_MST, ifelse(substr(MST,1,3) == 'A_T', 2, BGC_MST$fill))
-BGC_MST$fill <- with(BGC_MST, ifelse(substr(MST,1,3) == 'C_G', 3, BGC_MST$fill))
+#3) Effect of AFS heterogeneity on Demographic inference
+library(ggplot2)
+library(gridExtra)
+library(scales)
+library(MASS)
 
-ggplot(BGC_MST, aes(x=reorder(MST, gBGC), y=gBGC, fill=factor(fill)) ) +
-  geom_bar(stat="identity") +
-  xlab("MST") +
-  ylab("gBGC") +
-  theme(plot.title = element_text(hjust = 0.5)) +
+#Read in exponential growth demographic inference
+data <-read.table("/Users/kevinliao/Desktop/Michigan Research/Demographic Inference/combined_exp (2021_08_24 20_19_58 UTC).txt", header = FALSE)
+colnames(data) <- c("theta", "LogLik","nu", "T", "MST", "theta_w", "theta_pi")
+
+data1 <- merge(data, merged_data, by="MST")
+data1$theta_dadi <- data1$theta/data1$nMotifs
+data1$theta_w_norm <- data1$theta_w/data1$nMotifs 
+data1$theta_pi_norm <- data1$theta_pi/data1$nMotifs 
+
+#Compare theta estimates from Dadi, watterson, MPD
+theta_dadi3 <- ggplot(data=data1, aes(x=MST, y=theta_dadi)) +
+  geom_bar(stat="identity") + 
+  xlab("Mutation Subtype") +
+  ylab("Theta - Dadi") +
   theme(axis.text.x=element_text(angle=90)) +
-  scale_fill_manual(values = c("3" = "black", "2" = "dodgerblue", "1" = "orangered2", "0" = "grey70"),
-                    name="Mutation\nSubtype",
-                    breaks = c(0,1,2,3),
-                    labels =c("Other","A_G","A_T", "C_G")) +
-  ggtitle("Quantified gBGC by MST") +
   theme(plot.title = element_text(hjust = 0.5)) 
 
-#Conduct Mann Whitney Test for A->G compared to other mutation types to show biased gene conversion
-BGC_noCpG <- BGC_MST[-c(95,91,87,83),]
+theta_dadi3
 
-A_C_bcg <- subset(BGC_MST, substr(MST,1,3) == 'A_C')
-non_A_C_bcg <- subset(BGC_MST, substr(MST,1,3) != 'A_C')
-
-A_G_bcg <- subset(BGC_MST, substr(MST,1,3) == 'A_G')
-non_A_G_bcg <- subset(BGC_MST, substr(MST,1,3) != 'A_G')
-
-A_T_bcg <- subset(BGC_MST, substr(MST,1,3) == 'A_T')
-non_A_T_bcg <- subset(BGC_MST, substr(MST,1,3) != 'A_T')
-
-C_A_bcg <- subset(BGC_MST, substr(MST,1,3) == 'C_A')
-non_C_A_bcg <- subset(BGC_MST, substr(MST,1,3) != 'C_A')
-
-C_G_bcg <- subset(BGC_MST, substr(MST,1,3) == 'C_G')
-non_C_G_bcg <- subset(BGC_MST, substr(MST,1,3) != 'C_G')
-
-C_T_bcg <- subset(BGC_MST, substr(MST,1,3) == 'C_T')
-non_C_T_bcg <- subset(BGC_MST, substr(MST,1,3) != 'C_T')
-
-C_T_noCpG_bcg <- subset(BGC_noCpG, substr(MST,1,3) == 'C_T')
-non_C_T_noCpG_bcg <- subset(BGC_noCpG, substr(MST,1,3) != 'C_T')
-
-wilcox.test(as.numeric(as.vector(A_C_bcg$gBGC)), as.numeric(as.vector(non_A_C_bcg$gBGC)), paired=FALSE)
-
-#significant
-wilcox.test(as.numeric(as.vector(A_G_bcg$gBGC)), as.numeric(as.vector(non_A_G_bcg$gBGC)), paired=FALSE)
-
-#significant
-wilcox.test(as.numeric(as.vector(A_T_bcg$gBGC)), as.numeric(as.vector(non_A_T_bcg$gBGC)), paired=FALSE)
-
-wilcox.test(as.numeric(as.vector(C_A_bcg$gBGC)), as.numeric(as.vector(non_C_A_bcg$gBGC)), paired=FALSE)
-
-#significant
-wilcox.test(as.numeric(as.vector(C_G_bcg$gBGC)), as.numeric(as.vector(non_C_G_bcg$gBGC)), paired=FALSE)
-
-#significant
-wilcox.test(as.numeric(as.vector(C_T_bcg$gBGC)), as.numeric(as.vector(non_C_T_bcg$gBGC)), paired=FALSE)
-
-#not significant after taking out CpGs
-wilcox.test(as.numeric(as.vector(C_T_noCpG_bcg$gBGC)), as.numeric(as.vector(non_C_T_noCpG_bcg$gBGC)), paired=FALSE)
-
-
-#Compare ranks from BGC output to F* output
-merged_data$rank_F <- rank(merged_data$F)
-merged_data$rank_D <- rank(merged_data$D)
-BGC_MST$rank_gBGC <- rank(BGC_MST$gBGC, ties.method = "first")
-
-compare_merge <- merge(merged_data, BGC_MST, by = 'MST')
-
-
-
-
-#5 Demographic inference
-exp_output <-read.table("/Users/kevinliao/Desktop/Michigan Research/Demographic Inference/combined_exp (2021_08_24 20_19_58 UTC).txt", header = FALSE)
-colnames(exp_output) <- c("theta", "LogLik","nu", "T", "MST", "theta_w", "theta_pi")
-
-exp_output1 <- merge(exp_output, merged_data, by='MST')
-exp_output2 <- merge(exp_output1, singles, by='MST')
-exp_output2$CpG <- as.factor(ifelse(substr(exp_output2$MST, 1,3) == 'C_T' & substr(exp_output2$MST,6,7) == 'CG', 2, 1))
-
-CpGs <- c("C_T.ACG","C_T.CCG","C_T.GCG","C_T.TCG")
-
-#jpeg("/Users/kevinliao/Desktop/Michigan Research/AFS Paper Analysis/Figures in Paper/pop_growth.jpg", units = 'in', width = 6, height = 4, res = 600)
-ggplot(data=exp_output2, aes(x=prop_singles, y=nu)) +
-  geom_point(size = 2.5, aes(color = CpG, shape = CpG)) + 
-  #geom_point(data=subset(exp_output2, MST %in% CpGs), aes(x=prop_singles, y=nu, size = 1)) +
-  xlab("Proportion of Singletons") +
-  ylab("Current Size / Ancestral Size") +
+theta_w3 <- ggplot(data=data1, aes(x=MST, y=theta_w_norm)) +
+  geom_bar(stat="identity") + 
+  xlab("Mutation Subtype") +
+  ylab("Theta - Watterson") +
   theme(axis.text.x=element_text(angle=90)) +
-  ggtitle("Population Growth by Proportion of Singletons for 96 MSTs") +
-  theme(plot.title = element_text(hjust = 0.5, size = 14), legend.position = c(0.15, 0.8), legend.title = element_blank(),
-        axis.title.y =element_text(size=13), 
-        axis.title.x =element_text(size=13)) +
-  scale_color_manual(labels = c(" Non X[C->T]G", " X[C->T]G"),  values=c("royalblue3", "firebrick4")) +
-  scale_shape_manual(labels = c(" Non X[C->T]G", " X[C->T]G"),  values=c(19,17)) +
-  geom_smooth(method='lm') 
-  #geom_vline(xintercept=0.57)
-#dev.off()
+  theme(plot.title = element_text(hjust = 0.5)) 
 
-exp_output2$theta_dadi <- exp_output2$theta/exp_output2$nMotifs
-exp_output2$theta_w_norm <- exp_output2$theta_w/exp_output2$nMotifs 
-exp_output2$theta_pi_norm <- exp_output2$theta_pi/exp_output2$nMotifs 
+theta_w3
 
-#Compute absolute mutation rate
-exp_output2$lambda <- 60/sum(exp_output2$nMotifs*exp_output2$ERV_rel_rate)
-exp_output2$abs_mutRate <- exp_output2$ERV_rel_rate*exp_output2$lambda
+theta_pi3 <- ggplot(data=data1, aes(x=MST, y=theta_pi_norm)) +
+  geom_bar(stat="identity") + 
+  xlab("Mutation Subtype") +
+  ylab("Theta - MPD") +
+  theme(axis.text.x=element_text(angle=90)) +
+  #ggtitle("Theta Standardized by Mutation Subtype Genomewide") +
+  theme(plot.title = element_text(hjust = 0.5)) 
 
-exp_output2$N_ref <- exp_output2$theta/(4*exp_output2$nMotifs*exp_output2$abs_mutRate)
-exp_output2$T_gen <- 2*exp_output2$N_ref * exp_output2$T
-exp_output2$growth_rate <- (exp_output2$nu)^(1/exp_output2$T_gen) - 1
+theta_pi3
+
+grid.arrange(theta_dadi3, theta_w3, theta_pi3, nrow = 3, ncol = 1)
+
+##### Compute absolute mutation rate b/c previous paper used relative rates
+lambda <- 60/sum(data1$nMotifs*data1$mut_rate)
+data1$abs_mutRate <- data1$mut_rate*lambda
+
+data1$N_ref <- data1$theta/(4*data1$nMotifs*data1$abs_mutRate)
+data1$T_gen <- 2*data1$N_ref * data1$T
+data1$growth_rate <- (data1$nu)^(1/data1$T_gen) - 1
 #data1$growth_rate <- log(data1$nu)/data1$T_gen
 
-
+#Export to file 
+library(openxlsx)
+write.xlsx(data1, "Desktop/Michigan Research/AFS Paper Analysis/Figures in Paper/exp_parameters.xlsx")
 
 #Make plots comparing Nu and T
-T_plot <- ggplot(data=exp_output2, aes(x=MST, y=T_gen)) +
+T_plot <- ggplot(data=data1, aes(x=MST, y=T)) +
   geom_bar(stat="identity") + 
   xlab("Mutation Subtype") + 
   ylab("Time since ancestral population started growing") +
@@ -542,18 +445,42 @@ T_plot <- ggplot(data=exp_output2, aes(x=MST, y=T_gen)) +
   theme(plot.title = element_text(hjust = 0.5)) 
 T_plot
 
-nu_plot <- ggplot(data=exp_output2, aes(x=MST, y=nu)) +
+nu_plot <- ggplot(data=data1, aes(x=MST, y=nu)) +
   geom_bar(stat="identity") + 
   xlab("Mutation Subtype") +
   ylab("Current N_eff relative to ancestral N_eff") +
   theme(axis.text.x=element_text(angle=90)) +
   #ggtitle("Theta Standardized by Mutation Subtype Genomewide") +
-  theme(plot.title = element_text(hjust = 0.5))  
+  theme(plot.title = element_text(hjust = 0.5))  + 
+  ylim(0,275)
 nu_plot
 
 grid.arrange(T_plot, nu_plot, nrow = 2)
 
-N_ref_plot <- ggplot(data=exp_output2, aes(x=MST, y=N_ref)) +
+data2 <- merge(data1, singles, by='MST')
+
+ggplot(data=data2, aes(x=prop_singles, y=nu)) +
+  geom_point(stat="identity") + 
+  xlab("Proportion of Singletons") +
+  ylab("Current Pop Size / Ancestral Pop Size") +
+  theme(axis.text.x=element_text(angle=90)) +
+  ggtitle("Population Growth by Proportion of Singletons for 96 MSTs") +
+  theme(plot.title = element_text(hjust = 0.5))  
+
+cor.test(data2$nu, data2$prop_singles)
+
+ggplot(data=subset(data1, mut_rate < 0.06), aes(x=mut_rate, y=nu)) +
+  geom_point(stat="identity") + 
+  xlab("Mutation Rate") +
+  ylab("Present N_eff / Ancestral N_eff") +
+  theme(axis.text.x=element_text(angle=90)) +
+  #ggtitle("Theta Standardized by Mutation Subtype Genomewide") +
+  theme(plot.title = element_text(hjust = 0.5))  
+
+cor.test(subset(data1, mut_rate < 0.06)$mut_rate, subset(data1, mut_rate < 0.06)$nu)
+
+
+N_ref_plot <- ggplot(data=data1, aes(x=MST, y=N_ref)) +
   geom_bar(stat="identity") + 
   xlab("Mutation Subtype") +
   ylab("Effective Population Size") +
@@ -565,14 +492,90 @@ N_ref_plot <- ggplot(data=exp_output2, aes(x=MST, y=N_ref)) +
         plot.title = element_text(size = 18, face = "bold"))
 N_ref_plot
 
-grid.arrange(T_plot, N_ref_plot, nrow = 2)
+Tgen_plot <- ggplot(data=data1, aes(x=MST, y=T_gen)) +
+  geom_bar(stat="identity") + 
+  xlab("Mutation Subtype") +
+  ylab("Time (generations)") +
+  theme(axis.text.x=element_text(angle=90)) +
+  ggtitle("Time Since Ancestral Population Started Growing") +
+  theme(plot.title = element_text(hjust = 0.5)) +
+  theme(axis.text=element_text(size=10),
+        axis.title=element_text(size=16,face="bold"),
+        plot.title = element_text(size = 18, face = "bold"))
+Tgen_plot
+
+grid.arrange(N_ref_plot, Tgen_plot, nrow = 2)
+
+gr_plot <- ggplot(data=data1, aes(x=MST, y=growth_rate)) +
+  geom_bar(stat="identity") + 
+  xlab("Mutation Subtype") +
+  ylab("Growth Rate per Generation") +
+  theme(axis.text.x=element_text(angle=90)) +
+  #ggtitle("Theta Standardized by Mutation Subtype Genomewide") +
+  theme(plot.title = element_text(hjust = 0.5)) 
+gr_plot
 
 
+#Look at output for bottlneck model
+bottleneck <- read.table("/Users/kevinliao/Desktop/Michigan Research/Demographic Inference/bottleneck_7_1_21 (2021_08_24 20_19_58 UTC).txt")
+colnames(bottleneck) <- c("theta", "max_ll", "nuB","nuF","TB","TF","MST")
+bottleneck$time <- bottleneck$TB + bottleneck$TF
 
+bottleneck1 <- merge(bottleneck, mut_rates, by="MST")
+bottleneck2 <- merge(bottleneck1, singles, by='MST')
+bottleneck3 <- merge(bottleneck2, taj_d_df, by='MST')
 
-#6 Selection (Figures 3a and 3b)
+lambda <- 60/sum(bottleneck3$nMotifs*bottleneck3$ERV_rel_rate)
+bottleneck3$abs_mutRate <- bottleneck3$ERV_rel_rate*lambda
+bottleneck3$N_ref <- bottleneck3$theta/(4*bottleneck3$nMotifs*bottleneck3$abs_mutRate)
+bottleneck3$T_gen <- 2*bottleneck3$N_ref * bottleneck3$time
 
-### Run for a single subtype FPR increase
+#export for paper
+write.xlsx(bottleneck3, "Desktop/Michigan Research/AFS Paper Analysis/Figures in Paper/BN_parameters.xlsx")
+
+time <- ggplot(data=bottleneck, aes(x=MST, y=time)) +
+  geom_bar(stat="identity") + 
+  xlab("Mutation Subtype") +
+  theme(axis.text.x=element_text(angle=90)) +
+  theme(plot.title = element_text(hjust = 0.5)) 
+
+nuB <- ggplot(data=bottleneck, aes(x=MST, y=nuB)) +
+  geom_bar(stat="identity") + 
+  xlab("Mutation Subtype") +
+  theme(axis.text.x=element_text(angle=90)) +
+  theme(plot.title = element_text(hjust = 0.5)) 
+
+nuF <- ggplot(data=bottleneck, aes(x=MST, y=nuF)) +
+  geom_bar(stat="identity") + 
+  xlab("Mutation Subtype") +
+  theme(axis.text.x=element_text(angle=90)) +
+  theme(plot.title = element_text(hjust = 0.5)) 
+
+grid.arrange(time, nuB, nuF)
+
+cor.test(bottleneck3$nuB, bottleneck3$D)
+cor.test(subset(bottleneck3, bottleneck3$D < -1.6)$nuB, subset(bottleneck3, bottleneck3$D < -1.6)$D)
+
+bottleneck3$CpG <- as.factor(ifelse(substr(bottleneck3$MST, 1,3) == 'C_T' & substr(bottleneck3$MST,6,7) == 'CG', 2, 1))
+
+cor.test(bottleneck3$nuB, bottleneck3$TF)
+ggplot(data=bottleneck3, aes(x=TF, y=nuB)) + geom_point() 
+
+jpeg("C:\\Users\\Kevin Liao\\Desktop\\Michigan Research\\AFS Paper Analysis\\Figures in Paper\\bottleneck.jpg", units = 'in', width = 7.5, height = 5.5, res = 600)
+ggplot(data=bottleneck3, aes(x=D, y=nuB)) + geom_point() +
+  ggtitle("Population Contraction During Bottleneck by Tajima's D for 96 MSTs") +
+  xlab("Tajima's D") + ylab("Population Contraction During Bottleneck") +
+  geom_smooth(method='lm') + theme(plot.title = element_text(hjust = 0.5, size = 13))
+dev.off()
+
+#4 Effect of AFS heterogeneity on selection. Look at distribution of subtypes and Tajima's D across the genome 
+### Look at distribution of subtypes vs Tajima's D
+source(Abundant_windows.R)
+
+### Make figure for abundant windows by gBGC, mut rate across Tajima's D quantiles 
+source(Make_figure_abundant_categories.R)
+
+### Look at increase in false positives for windows abundant in a given subtype 
 single <- "C_G.GCG"
 single_MST <- read.table(paste0("/Users/kevinliao/Desktop/Michigan Research/Selection/tajD_MST_corrected/tajD_", single, " (2020_02_29 01_13_00 UTC).txt"), header=TRUE)
 
@@ -686,117 +689,6 @@ ggplot(data=MST_fdr, aes(x=reorder(MST, as.numeric(high)), y=as.numeric(high), f
 
 
 
-
-
-
-
-
-#Import gee model results (originally run on cluster zoellenr_research/afs_project/gee_model)
-gee_output <- read.table("/Users/kevinliao/Desktop/Michigan Research/AFS Paper Analysis/gee_model_output (2021_08_24 20_19_58 UTC).txt", header=TRUE)
-gee_merged <- merge(gee_output, merged_data, by='MST')
-
-gee_merged2 <- merge(gee_merged, MST_fdr, by="MST")
-
-gee_merged2$fill_gee <- ifelse(gee_merged2$pval < 0.05, 1, 0)
-
-fig_4b <- ggplot(data=gee_merged2, aes(x=reorder(MST, as.numeric(high)), y=as.numeric(high), fill=as.factor(fill_gee))) +
-  geom_bar(stat="identity") + 
-  xlab("Mutation Subtype") +
-  ylab("FPR for Windows in Top 10% of MST Abundance") +
-  theme(axis.text.x=element_text(angle=90)) +
-  ggtitle("FPR for Windows in Top 10% of MST Abundance by MST") +
-  theme(plot.title = element_text(hjust = 0.5)) +
-  scale_y_continuous(limits=c(0.04, 0.12),oob = rescale_none) +
-  guides(fill=guide_legend(title="Significant \nFrom GEE")) + 
-  scale_fill_manual(values=c("#999999", "cornflowerblue"))
-fig_4b
-
-#Add info from permuted analysis
-gee_merged3 <- merge(gee_merged2, permuted_FDR, by='MST')
-
-gee_sig <- subset(gee_merged2, gee_merged2$pval < 0.05)
-gee_nonsig <- subset(gee_merged2, gee_merged2$pval > 0.05)
-t.test(gee_sig$FDR_increase, gee_nonsig$FDR_increase)
-t.test(gee_sig$FDR_increase.y, gee_nonsig$FDR_increase.y)
-
-MST_counts <- read.table(paste0("C:\\Users\\Kevin Liao\\Desktop\\Michigan Research\\Selection\\window_MSTcount",".txt"), header=TRUE)
-
-MST_counts2 <- MST_counts[3:98]/rowSums(MST_counts[3:98])
-MST_props <- cbind(MST_counts[, c(1,2)], MST_counts2)
-
-D_windows <- single_MST[,c("chr","window","taj_D","F")]
-#merge causes sample size to go from 19690 to 12787 b/c these are where I computed D
-props_D <- merge(MST_props, D_windows, by=c('chr', 'window'))
-props_D$chr_window <- paste0(props_D$chr, "_", props_D$window)
-
-gc_content <- read.table(paste0("C:\\Users\\Kevin Liao\\Desktop\\Michigan Research\\AFS Paper Analysis\\GC Content\\gc_content.txt"), header=FALSE)
-head(gc_content)
-colnames(gc_content) <- c("chr","window_start","window_end", "at_pct","gc_pct","num_A","num_c","num_g","num_t","num_N","num_other","seq_length")
-
-gc_content1 <- gc_content[, c(1,2,5)]
-colnames(gc_content1) <- c("chr", "window", "gc_pct")
-gc_content1$chr <- substr(gc_content1$chr,4,5)
-gc_content1$chr_window <- paste0(gc_content1$chr, "_", gc_content1$window)
-
-all_props_D <- merge(props_D, gc_content1, by=c("chr",'window'))
-
-#all_props_D2 <- merge(all_props_D, data[, c(1,2,8)], by = c("chr","window"))
-#all_props_D2 <- all_props_D2[,-c(101,103)]
-
-gee_model2 <- gee(data=all_props_D, taj_D ~ . - chr - window - F - C_G.ACT,
-                  id = chr, corstr="exchangeable")
-
-output <- as.data.frame(round(summary(gee_model2)$coef, 3))
-output$MST <- row.names(output)
-output$p_2sided <- 2*pnorm(-abs(output$`Robust z`)) 
-output$p_1sided <- pnorm(output$`Robust z`)
-output$significant <- (output$p_1sided < 0.05)
-output <- output[-1,]
-
-gee_merged <- merge(output, merged_data, by = "MST")
-gee_merged2 <- merge(gee_merged, MST_fdr, by="MST")
-gee_merged2$fill_gee <- ifelse(gee_merged2$significant == TRUE, 1, 0)
-
-fig_4b <- ggplot(data=gee_merged2, aes(x=reorder(MST, as.numeric(high)), y=as.numeric(high), fill=as.factor(fill_gee))) +
-  geom_bar(stat="identity") + 
-  xlab("Mutation Subtype") +
-  ylab("FPR for Windows in Top 10% of MST Abundance") +
-  theme(axis.text.x=element_text(angle=90)) +
-  ggtitle("FPR for Windows in Top 10% of MST Abundance by MST") +
-  theme(plot.title = element_text(hjust = 0.5)) +
-  scale_y_continuous(limits=c(0.04, 0.12),oob = rescale_none) +
-  guides(fill=guide_legend(title="Significant Association \nFrom Multivariate GEE"))
-
-fig_4b
-
-fdr_plot <- ggplot(data=MST_fdr, aes(x=reorder(MST, high), y=high)) +
-  geom_bar(stat="identity") + 
-  xlab("Mutation Subtype") +
-  ylab("FPR Increase for Windows in Top 10% of MST Abundance ") +
-  theme(axis.text.x=element_text(angle=90)) +
-  ggtitle("FPR for Windows in Top 10% 0f MST Abundance by MST") +
-  theme(plot.title = element_text(hjust = 0.5)) +
-  scale_y_continuous(limits=c(0.04, 0.12),oob = rescale_none) 
-fdr_plot
-
-
-#7 General Plots
-
-#Create plot of general SFS. Using C_T.ACG
-example_SFS <-read.table("C:\\Users\\Kevin Liao\\Desktop\\Michigan Research\\AFS Paper Analysis\\Genomewide SFS\\C_T.CCG.txt")
-example_SFS <- example_SFS[-1,]
-colnames(example_SFS) <- c("AC", "site_num")
-example_SFS$site_factor <- as.factor(example_SFS$site_num)
-example_SFS$prop <- example_SFS$AC/sum(example_SFS$AC)
-example_subset <- subset(example_SFS, site_num <= 10)
-ggplot(data = example_subset, aes(x=site_factor, y=prop)) +
-  geom_bar(stat='identity', color='black', fill ='#4271AE') +
-  xlab("Derived Allele Frequency") + ylab("Proportion of Sites") +
-  ylim(0.0,0.60) +
-  ggtitle("Example Allele Frequency Spectrum") +
-  theme(plot.title = element_text(hjust = 0.5)) 
-  
-asdf
 
 
 
