@@ -1,4 +1,4 @@
-Repository containing code to perform analysis in paper: The Effect of Mutation Subtypes on the Allele Frequency Spectrum and Population Genetics Inference.
+Repository containing code to perform analysis in paper: The Effect of Mutation Subtypes on the Allele Frequency Spectrum and Population Genetics Inference. Note AFS for each of the 96 mutation subtypes can be downloaded from: https://zenodo.org/record/6643451#.YtWeOuzMI-Q
 
 Files include:
 1) Main_Analysis.R: Main script. Imports AFS for each subtype and computes various summary statistics (proportion of singletons to doubletons, Tajima's D, etc).
